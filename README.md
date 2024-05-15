@@ -488,8 +488,9 @@ const Providers: FC<PropsWithChildren> = ({ children }) => (
 export default Providers;
 ```
 
-7. i18n
-   you basically wrote an i18n library which is amazing! but also very complicated, let's just use [`react-i18next`](https://react.i18next.com/)
+## 7. i18n
+
+you basically wrote an i18n library which is amazing! but also very complicated, let's just use [`react-i18next`](https://react.i18next.com/)
 
 -   run: `yarn add react-i18next i18next i18next-browser-languagedetector i18next-http-backend`
 
@@ -684,21 +685,27 @@ export const RootLayout: FC = () => (
     </>
 );
 ```
+
 so far as we dont have any content really, you gonna have to trust me it works, but just to be sure let's add a translated title to the index page:
 
-- add to the german translation file:
+-   add to the german translation file:
+
 ```
 "pages": {
         "indexPage": {
             "title": "Willkommen",
 ```
-- add to the english translation file:
+
+-   add to the english translation file:
+
 ```
 "pages": {
         "indexPage": {
             "title": "Welcome",
 ```
+
 and make sure we pass it to the useTitle hook:
+
 ```
 import type { FC } from 'react';
 import { useTitle } from '@hooks/useTitle';
@@ -712,3 +719,297 @@ export const IndexPage: FC = () => {
 ```
 
 now if you play with the languages you'll see that the page title changes according to the current selected language.
+
+## 8. Toasters
+
+same here, your implementation is amazing, but i chose to use `notistack` that is actually recomended in MUI documentations for this exactly.
+
+so let's start by installing it
+
+-   run: `yarn add notistack`
+
+now let's augment `notistack` module to our needs
+
+-   create `src/types/notistack.d.ts` file:
+
+```
+import type { AlertProps } from '@mui/material';
+import { ReactNode } from 'react';
+
+declare module 'notistack' {
+    type Severity = NonNullable<AlertProps['severity']>;
+    type ExpandableContent = ReactNode | ((_onClose: () => void) => ReactNode);
+    interface VariantOverrides {
+        toaster: {
+            severity?: Severity;
+            // content?: ReactNode; // content key is deprecated better use something else
+            expandableContent?: ExpandableContent;
+        };
+    }
+}
+```
+
+now let's create our custom toaster component:
+
+-   create `src/components/ui/toaster.tsx`
+
+```
+import { forwardRef, useCallback, useState } from 'react';
+import {
+    type CustomContentProps,
+    type Severity,
+    type ExpandableContent,
+    SnackbarContent,
+    useSnackbar,
+} from 'notistack';
+import Collapse from '@mui/material/Collapse';
+import MuiTypography from '@mui/material/Typography';
+import MuiCard from '@mui/material/Card';
+import MuiCardActions from '@mui/material/CardActions';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { styled } from '@mui/material';
+
+const Base = styled(SnackbarContent)({
+    '@media (min-width:600px)': { minWidth: '344px !important' },
+});
+const Card = styled(MuiCard)<{ severity: Severity }>(({ theme: { palette }, severity }) => ({
+    width: '100%',
+    background: palette[severity][palette.mode],
+}));
+const Typography = styled(MuiTypography)({ color: '#000' });
+const CardActions = styled(MuiCardActions)({ padding: '8px 8px 8px 16px', justifyContent: 'space-between' });
+const IconsWrapper = styled('div')({ marginLeft: 'auto' });
+const ExpandButton = styled(IconButton)<{ expanded?: 0 | 1 }>(({ expanded }) => ({
+    padding: '8px 8px',
+    color: '#000',
+    transition: 'transform 0.2s',
+    transform: expanded ? 'rotate(180deg)' : 'init',
+}));
+
+interface ToastProps extends CustomContentProps {
+    severity: Severity;
+    expandableContent?: ExpandableContent;
+}
+
+const Toaster = forwardRef<HTMLDivElement, ToastProps>(function Toaster(
+    { id, message, severity, expandableContent },
+    ref
+) {
+    const { closeSnackbar } = useSnackbar();
+    const [expanded, setExpanded] = useState(false);
+
+    const handleExpandClick = useCallback(() => setExpanded((prevExpanded) => !prevExpanded), []);
+
+    const handleDismiss = useCallback(() => closeSnackbar(id), [id, closeSnackbar]);
+
+    return (
+        <>
+            <Base ref={ref} role="alert">
+                <Card severity={severity ?? 'success'}>
+                    <CardActions>
+                        <Typography variant="body2">{message}</Typography>
+                        <IconsWrapper>
+                            {expandableContent ? (
+                                <ExpandButton
+                                    aria-label="Show more"
+                                    size="small"
+                                    expanded={expanded ? 1 : 0}
+                                    onClick={handleExpandClick}>
+                                    <ExpandMoreIcon />
+                                </ExpandButton>
+                            ) : null}
+                            <ExpandButton size="small" onClick={handleDismiss}>
+                                <CloseIcon fontSize="small" />
+                            </ExpandButton>
+                        </IconsWrapper>
+                    </CardActions>
+                    {expandableContent ? (
+                        <Collapse in={expanded} timeout="auto" unmountOnExit>
+                            {typeof expandableContent === 'function'
+                                ? expandableContent(handleDismiss)
+                                : expandableContent}
+                        </Collapse>
+                    ) : null}
+                </Card>
+            </Base>
+        </>
+    );
+});
+
+export default Toaster;
+```
+
+now create our ToasterProvider:
+
+-   create `src/providers/toasterProvider.tsx`:
+
+```
+import type { FC, PropsWithChildren } from 'react';
+import { SnackbarProvider } from 'notistack';
+import Toaster from '@components/ui/toaster';
+
+const ToastProvider: FC<PropsWithChildren> = ({ children }) => (
+    <SnackbarProvider maxSnack={8} Components={{ toaster: Toaster }}>
+        {children}
+    </SnackbarProvider>
+);
+
+export default ToastProvider;
+```
+
+now let's wrap our Providers component:
+
+```
+const Providers: FC<PropsWithChildren> = ({ children }) => (
+    <SessionProvider>
+        <ToastProvider>
+            <StylesProvider>{children}</StylesProvider>
+        </ToastProvider>
+    </SessionProvider>
+);
+```
+
+and one last part for our toaster puzzle, let's create a hook to ease our work:
+
+-   create `src/hooks/useToaster.ts`:
+
+```
+import { ReactNode, useCallback } from 'react';
+import { type Severity, type ExpandableContent, useSnackbar } from 'notistack';
+
+export interface ToastConfig {
+    severity: Severity;
+    expandableContent: ExpandableContent;
+    autoHideDuration?: number;
+    transitionDuration?: number;
+}
+
+const autoHideDurationInMs = 1000;
+const snackbarCloseAnimationDurationInMs = 300;
+
+export const useToaster = () => {
+    const { enqueueSnackbar } = useSnackbar();
+
+    const showMessage = useCallback(
+        (message: ReactNode, config?: Partial<ToastConfig>) =>
+            enqueueSnackbar(message, {
+                variant: 'toaster',
+                anchorOrigin: { horizontal: 'center', vertical: 'top' },
+                autoHideDuration: config?.autoHideDuration ?? autoHideDurationInMs,
+                transitionDuration: { exit: config?.transitionDuration ?? snackbarCloseAnimationDurationInMs },
+                severity: config?.severity, // defaults to success
+                expandableContent: config?.expandableContent,
+            }),
+        [enqueueSnackbar]
+    );
+    return { showMessage };
+};
+```
+
+let's see all this goodies, by first let's update the `RootLayout` and add it a mui `Container` to ease the eyes
+
+```
+import type { FC } from 'react';
+import { Outlet } from 'react-router-dom';
+import { Footer } from './footer';
+import Container from '@mui/material/Container';
+
+export const RootLayout: FC = () => (
+    <>
+        <Container>
+            <Outlet />
+            <Footer />
+        </Container>
+    </>
+);
+```
+
+and add the following to our `IndexPage.tsx` file:
+
+```
+import type { FC } from 'react';
+import { useTitle } from '@hooks/useTitle';
+import { useTranslation } from 'react-i18next';
+import { useToaster } from '@hooks/useToaster';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import { useAuth } from 'src/providers/sessionProvider';
+import { FunctionalLink } from '@components/ui/routing';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+
+export const IndexPage: FC = () => {
+    const { t } = useTranslation();
+    useTitle(t('pages.indexPage.title'));
+    const toaster = useToaster();
+    const { data: sessionData, isLoggedIn } = useAuth().session;
+
+    const username = isLoggedIn ? sessionData.user.username : t('core.currentUser.guestDisplayName');
+    const greeting = t('pages.indexPage.greeting', { username });
+    return (
+        <>
+            {greeting}
+            <div style={{ marginTop: '15px' }}>
+                <Alert severity="info">
+                    <strong>MuiToasterSubscriber:</strong>
+                    <br />
+                    Note that if a toast message is displayed and you click outside of it, this toast message will
+                    automatically be closed.
+                    <br />
+                    <br />
+                    <FunctionalLink onClick={() => toaster.showMessage(greeting, { autoHideDuration: 1000000 })}>
+                        trigger info toast
+                    </FunctionalLink>
+                    <br />
+                    <FunctionalLink
+                        onClick={() => {
+                            toaster.showMessage(<>First: {greeting}</>, {
+                                severity: 'success', // defaults to success
+                                autoHideDuration: 1500, // defaults to 1000
+                            });
+                            toaster.showMessage(<>Second: {greeting}</>, { severity: 'error' });
+                            toaster.showMessage(<>Third: ${greeting}</>);
+                            toaster.showMessage(`You can also just pass a string: ${greeting}`);
+                            toaster.showMessage(<>You can also pass additional content</>, {
+                                severity: 'warning',
+                                autoHideDuration: 5000,
+                                expandableContent: (
+                                    <Paper>
+                                        <Typography gutterBottom variant="caption" sx={{ display: 'block' }}>
+                                            Demo content
+                                        </Typography>
+                                        <Button size="small" color="primary">
+                                            <CheckCircleIcon sx={{ fontSize: 20, pr: 4 }} />
+                                            Demo action button
+                                        </Button>
+                                    </Paper>
+                                ),
+                            });
+                            toaster.showMessage(<>And pass arguments as well</>, {
+                                severity: 'info',
+                                autoHideDuration: 100000,
+                                expandableContent: (handleDismiss) => (
+                                    <Paper>
+                                        <Typography gutterBottom variant="caption" sx={{ display: 'block' }}>
+                                            Demo content
+                                        </Typography>
+                                        <Button size="small" color="primary" onClick={handleDismiss} fullWidth>
+                                            <CheckCircleIcon sx={{ mr: 1 }} />
+                                            Demo action button
+                                        </Button>
+                                    </Paper>
+                                ),
+                            });
+                        }}>
+                        trigger multiple success toasts
+                    </FunctionalLink>
+                    <CheckCircleIcon />
+                </Alert>
+            </div>
+        </>
+    );
+};
+```

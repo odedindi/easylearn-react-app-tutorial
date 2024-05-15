@@ -1,10 +1,13 @@
 import type { FC, PropsWithChildren } from 'react';
 import SessionProvider from './sessionProvider';
 import StylesProvider from './stylesProvider';
+import ToastProvider from './toasterProvider';
 
 const Providers: FC<PropsWithChildren> = ({ children }) => (
     <SessionProvider>
-        <StylesProvider>{children}</StylesProvider>
+        <ToastProvider>
+            <StylesProvider>{children}</StylesProvider>
+        </ToastProvider>
     </SessionProvider>
 );
 

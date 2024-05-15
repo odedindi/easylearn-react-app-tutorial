@@ -44,6 +44,7 @@
         "jest-resolve": "^29.7.0",
         "jest-watch-typeahead": "^2.2.2",
         "mini-css-extract-plugin": "^2.9.0",
+        "notistack": "^3.0.1",
         "postcss": "^8.4.38",
         "postcss-flexbugs-fixes": "^5.0.2",
         "postcss-loader": "^8.1.1",
@@ -149,6 +150,7 @@
         "moduleNameMapper": {
             "^react-native$": "react-native-web",
             "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
+            "^src/(.*)$": "<rootDir>/src/$1",
             "@packages/(.*)": "<rootDir>/src/packages/$1",
             "@components(.*)$": "<rootDir>/src/components/$1",
             "@config(.*)$": "<rootDir>/src/config/$1",
