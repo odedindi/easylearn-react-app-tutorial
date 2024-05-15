@@ -354,8 +354,8 @@ export default SessionProvider;
 export const useAuth = () => useContext(sessionContext);
 ```
 
+-   update our `Providers` component:
 
-- update our `Providers` component:
 ```
 import type { FC, PropsWithChildren } from 'react';
 import SessionProvider from './sessionProvider';
@@ -366,9 +366,10 @@ export default Providers;
 ```
 
 4. Global config
-the app config can more easily shared via singleton rather then using context.
+   the app config can more easily shared via singleton rather then using context.
 
-- create `src/config/index.ts`
+-   create `src/config/index.ts`
+
 ```
 export type Config = {
     companyName: string;
@@ -376,5 +377,39 @@ export type Config = {
 
 export const config: Config = {
     companyName: 'ACME',
+};
+```
+
+5. useTitle hook
+
+-   create `src/hooks/useTitle.ts`
+
+```
+import { config } from '@config/index';
+import { useEffect } from 'react';
+
+export const useTitle = (title?: string): void => {
+    useEffect(() => {
+        if (!document) return;
+        const prevTitle = document.title;
+        document.title = [title ?? '', config.companyName].filter((str) => str?.length).join(' :: ');
+
+        return () => {
+            document.title = prevTitle;
+        };
+    }, [title]);
+};
+```
+
+use it in the different pages
+for example `pages/indexPage.tsx`
+
+```
+import type { FC } from 'react';
+import { useTitle } from '@hooks/useTitle';
+
+export const IndexPage: FC = () => {
+    useTitle('Home');
+    return <>Index Page</>;
 };
 ```
