@@ -487,3 +487,228 @@ const Providers: FC<PropsWithChildren> = ({ children }) => (
 
 export default Providers;
 ```
+
+7. i18n
+   you basically wrote an i18n library which is amazing! but also very complicated, let's just use [`react-i18next`](https://react.i18next.com/)
+
+-   run: `yarn add react-i18next i18next i18next-browser-languagedetector i18next-http-backend`
+
+by default `react-18next` will expect the translation files to be in `public/locales/[locale]/translation.json`
+it does not really matter but for the sake of the experience let's changes that and add our translation files to `src/config/locales`
+
+-   create `src/config/locales/deCH/translation.json`
+-   create `src/config/locales/en/translation.json`
+    _i took the liberty and just add all the content of the tutorial already_
+
+let's create our `i18n.ts` file where we set up the i18n service and properties
+
+-   create `src/i18n.ts`:
+
+```
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
+import Backend from 'i18next-http-backend';
+
+import translationDeCH from '@config/locales/deCH/translation.json';
+import translationEn from '@config/locales/en/translation.json';
+
+export const ALL_LANGUAGES = ['en', 'deCH'] as const;
+
+export const defaultNS = 'translation';
+
+export const resources = {
+    deCH: {
+        translation: { ...translationDeCH },
+    },
+    en: {
+        translation: { ...translationEn },
+    },
+};
+
+i18n
+    // i18next-http-backend
+    // loads translations from your server
+    // https://github.com/i18next/i18next-http-backend
+    .use(Backend)
+    // detect user language
+    // learn more: https://github.com/i18next/i18next-browser-languageDetector
+    .use(LanguageDetector)
+    // pass the i18n instance to react-i18next.
+    .use(initReactI18next)
+    // init i18next
+    // for all options read: https://www.i18next.com/overview/configuration-options
+    .init({
+        debug: process.env.NODE_ENV === 'development',
+        interpolation: {
+            escapeValue: false, // not needed for react as it escapes by default
+        },
+        lng: ALL_LANGUAGES[0],
+        fallbackLng: ALL_LANGUAGES,
+        ns: [defaultNS],
+        defaultNS,
+        resources,
+    });
+
+export default i18n;
+```
+
+and import it into the `src/index.tsx` file:
+
+```
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import App from './App';
+
+// import i18n (needs to be bundled)
+import './i18n';
+
+const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
+root.render(
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>
+);
+```
+
+Almost finished!, let's help ourselves by augmenting the `react-i18next` module with our resources so typescript will suggest us translation keys or show errors if we do not use the right translation keys
+
+-   create `src/types/i18next.d.ts` file:
+
+```
+import { defaultNS, resources } from '../i18n';
+
+declare module 'i18next' {
+    interface CustomTypeOptions {
+        resources: (typeof resources)['en'];
+        defaultNS: typeof defaultNS;
+    }
+}
+```
+
+done.
+
+let's see that it works, for starters let's create our link components;
+
+-   create `src/components/ui/routing/link.tsx`:
+
+```
+import type { FC } from 'react';
+import MuiLink, { type LinkProps as MuiLinkProps } from '@mui/material/Link';
+import { Link as ReactRouterDomLink } from 'react-router-dom';
+
+export type RoutingLinkProps = Omit<MuiLinkProps, 'component'> & {
+    to: string;
+};
+
+export const RoutingLink: FC<RoutingLinkProps> = (props) => <MuiLink {...props} component={ReactRouterDomLink} />;
+
+export interface FunctionalLinkProps extends Omit<MuiLinkProps, 'href'> {
+    onClick: () => void;
+}
+
+export const FunctionalLink: FC<FunctionalLinkProps> = ({ sx, ...props }) => (
+    <MuiLink
+        {...props}
+        sx={[{ cursor: 'pointer' }, ...(Array.isArray(sx) ? sx : [sx])]}
+        onClick={(event) => {
+            event.preventDefault();
+            props.onClick?.();
+        }}
+    />
+);
+```
+
+and export these components from `src/components/ui/routing/index.tsx`:
+
+```
+export * from './link';'
+```
+
+-   create a footer component at `components/layout/footer.tsx`
+
+```
+import type { FC } from 'react';
+import { FunctionalLink } from '@components/ui/routing';
+import { useTranslation } from 'react-i18next';
+import { ALL_LANGUAGES } from 'src/i18n';
+import { styled } from '@mui/material';
+
+const Base = styled('footer')`
+    display: flex;
+    justify-content: space-around;
+    margin-top: 60px;
+`;
+
+const FooterLink = styled(FunctionalLink)<{ selected?: Boolean }>`
+    color: ${({ selected }) => (selected ? '#bbb' : '#ddd')};
+    text-decoration: none;
+    margin: 0 5px;
+    font-family: inherit;
+    font-size: 12px;
+`;
+
+export const Footer: FC = () => {
+    const { t, i18n } = useTranslation();
+
+    return (
+        <Base>
+            <div>
+                {ALL_LANGUAGES.map((lng) => (
+                    <FooterLink
+                        key={lng}
+                        selected={i18n.resolvedLanguage === lng}
+                        onClick={() => i18n.changeLanguage(lng)}>
+                        {t(`core.languages.${lng}`)}
+                    </FooterLink>
+                ))}
+            </div>
+        </Base>
+    );
+};
+```
+
+and use it in the rootLayout:
+
+```
+import type { FC } from 'react';
+import { Outlet } from 'react-router-dom';
+import { Footer } from './footer';
+
+export const RootLayout: FC = () => (
+    <>
+        <h1>Root Layout</h1>
+        <Outlet />
+        <Footer />
+    </>
+);
+```
+so far as we dont have any content really, you gonna have to trust me it works, but just to be sure let's add a translated title to the index page:
+
+- add to the german translation file:
+```
+"pages": {
+        "indexPage": {
+            "title": "Willkommen",
+```
+- add to the english translation file:
+```
+"pages": {
+        "indexPage": {
+            "title": "Welcome",
+```
+and make sure we pass it to the useTitle hook:
+```
+import type { FC } from 'react';
+import { useTitle } from '@hooks/useTitle';
+import { useTranslation } from 'react-i18next';
+
+export const IndexPage: FC = () => {
+    const { t } = useTranslation();
+    useTitle(t('pages.indexPage.title'));
+    return <>Index Page</>;
+};
+```
+
+now if you play with the languages you'll see that the page title changes according to the current selected language.

@@ -1,0 +1,55 @@
+{
+    "core": {
+        "languages": {
+            "en": "English (US)",
+            "deCH": "Deutsch (CH)"
+        },
+        "currentUser": {
+            "guestDisplayName": "Gast"
+        },
+        "nav": {
+            "logout": "Ausloggen",
+            "login": "Anmelden",
+            "signUp": "Registrieren",
+            "mySettings": "Einstellungen"
+        },
+        "form": {
+            "selection": {
+                "choose": "Bitte wählen"
+            }
+        },
+        "util": {
+            "connectionToServerFailed": "Verbindung zum Server konnte nicht hergestellt werden."
+        }
+    },
+    "api": {
+        "v1": {
+            "formErrors": "Ihre Formulardaten sind fehlerhaft!",
+            "invalidValue": "Ungültiger Wert",
+            "invalidEmail": "Ungültige E-Mail Adresse",
+            "required": "Dieses Feld ist erforderlich",
+            "userWasCreated": "Benutzer wurde erstellt"
+        }
+    },
+    "pages": {
+        "indexPage": {
+            "title": "Willkommen",
+            "greeting": "Hallo {{username}}!"
+        },
+        "registerPage": {
+            "gender": "Geschlecht",
+            "genderOptions": {
+                "female": "Weiblich",
+                "male": "Männlich",
+                "other": "Andere"
+            },
+            "title": "Registrieren",
+            "username": "Benutzername",
+            "email": "E-Mail Adresse",
+            "password": "Passwort",
+            "agreeOnTermsAndConditions": "Ich bin mit den <0>AGB</0> einverstanden.",
+
+            "signUp": "Registrieren"
+        }
+    }
+}

@@ -1,0 +1,54 @@
+{
+    "core": {
+        "languages": {
+            "en": "English (US)",
+            "deCH": "Deutsch (CH)"
+        },
+        "currentUser": {
+            "guestDisplayName": "Guest"
+        },
+        "nav": {
+            "logout": "Logout",
+            "login": "Login",
+            "signUp": "Sign Up",
+            "mySettings": "Settings"
+        },
+        "form": {
+            "selection": {
+                "choose": "Please choose"
+            }
+        },
+        "util": {
+            "connectionToServerFailed": "Connection to server failed."
+        }
+    },
+    "api": {
+        "v1": {
+            "formErrors": "You have some errors in your form!",
+            "invalidValue": "Invalid value",
+            "invalidEmail": "Invalid email address",
+            "required": "This field is required",
+            "userWasCreated": "User was created successfully"
+        }
+    },
+    "pages": {
+        "indexPage": {
+            "title": "Welcome",
+            "greeting": "Hi {{username}}!"
+        },
+        "registerPage": {
+            "gender": "Gender",
+            "genderOptions": {
+                "female": "Female",
+                "male": "Male",
+                "other": "Other"
+            },
+            "title": "Sign up",
+            "username": "Username",
+            "email": "Email address",
+            "password": "Password",
+            "agreeOnTermsAndConditions": "I agree on the <0>terms and conditions</0>.",
+            "signUp": "Sign up"
+        }
+    }
+}
