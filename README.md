@@ -1901,3 +1901,32 @@ type RegisterUserPayload = {
 ```
 
 \*i would move the type around a restructure the types nesting and logic but its a lot of work and not really relevent to this app's scope
+
+## 13. Mock Server
+- run: yarn add zod && yarn add -D express cors nodemon tsx
+- add `nodemonConfig` to our `package.json`:
+```
+    "nodemonConfig": {
+        "watch": [
+            "mockApi"
+        ],
+        "ext": "ts",
+        "delay": "3",
+        "execMap": {
+            "ts": "tsx"
+        }
+    }
+```
+- add `mockApi` script to our `package.json`:
+```
+    "scripts": {
+        "start": "node scripts/start.js",
+        "build": "node scripts/build.js",
+        "test": "node scripts/test.js",
+        "lint": "eslint ./src --ext .ts,.tsx",
+        "lint:fix": "tsc && eslint ./src --ext .ts,.tsx --quiet --fix",
+        "format": "prettier --write .",
+        "mockApi": "nodemon ./mockApi/server.ts"
+    },
+```
+create `mockApi/server.ts` at the root 
