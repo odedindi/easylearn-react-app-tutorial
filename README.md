@@ -413,3 +413,77 @@ export const IndexPage: FC = () => {
     return <>Index Page</>;
 };
 ```
+
+## 6. Styles Provider
+
+as much as I love `Styled-Components` on MUI documentations it is explained why it is better to avoid using it together with mui, so let's prevent headaches and heartbreaks and just not use it
+
+-   run: `yarn add @mui/material @emotion/react @emotion/styled @mui/icons-material`
+
+and let's install the `Roboto` font via the google web fonts cdn, and add the following to our `public/index.html` file
+
+```
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+/>
+```
+
+-   create a simple theme at `src/config/theme.ts`:
+
+```
+import { createTheme } from '@mui/material/styles';
+import { red } from '@mui/material/colors';
+
+const theme = createTheme({
+    palette: {
+        primary: {
+            main: '#19857b',
+        },
+        secondary: {
+            main: '#556cd6',
+        },
+        error: {
+            main: red.A400,
+        },
+    },
+});
+
+export default theme;
+```
+
+-   create `src/providers/stylesProvider.tsx:
+
+```
+import type { FC, PropsWithChildren } from 'react';
+import CssBaseline from '@mui/material/CssBaseline';
+import { ThemeProvider } from '@mui/material/styles';
+import theme from '@config/theme';
+
+const StylesProvider: FC<PropsWithChildren> = ({ children }) => (
+    <ThemeProvider theme={theme}>
+        <CssBaseline />
+        {children}
+    </ThemeProvider>
+);
+
+export default StylesProvider;
+```
+
+-   use the new `StylesProvider`:
+
+```
+import type { FC, PropsWithChildren } from 'react';
+import SessionProvider from './sessionProvider';
+import StylesProvider from './stylesProvider';
+
+const Providers: FC<PropsWithChildren> = ({ children }) => (
+    <SessionProvider>
+        <StylesProvider>{children}</StylesProvider>
+    </SessionProvider>
+);
+
+export default Providers;
+```
