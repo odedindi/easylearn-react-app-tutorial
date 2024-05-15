@@ -1,21 +1,52 @@
-import React from 'react';
-import logo from './logo.svg';
+import { Suspense, type FC } from 'react';
 import './App.css';
+import { type RouteObject, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { IndexPage } from './pages/indexPage';
+import { RegisterPage } from './pages/auth/registerPage';
+import { MySettingsPage } from './pages/user-management/mySettingsPage';
+import { NotFoundPage } from './pages/notFoundPage';
+import { RootLayout } from '@components/layout';
+import Providers from './providers';
 
-function App() {
-    return (
-        <div className="App">
-            <header className="App-header">
-                <img src={logo} className="App-logo" alt="logo" />
-                <p>
-                    Edit <code>src/App.tsx</code> and save to reload.
-                </p>
-                <a className="App-link" href="https://reactjs.org" target="_blank" rel="noopener noreferrer">
-                    Learn React
-                </a>
-            </header>
-        </div>
-    );
-}
+export const routes: RouteObject[] = [
+    {
+        path: '/',
+        element: (
+            <Providers>
+                <RootLayout />
+            </Providers>
+        ),
+        loader: async () => {
+            return null;
+        },
+        errorElement: <NotFoundPage />,
+        children: [
+            {
+                index: true,
+                element: <IndexPage />,
+            },
+            {
+                path: '/auth/register',
+                element: <RegisterPage />,
+            },
+            {
+                path: '/user-management/my-settings',
+                element: <MySettingsPage />,
+            },
+            {
+                path: '*',
+                element: <NotFoundPage />,
+            },
+        ],
+    },
+];
+
+const router = createBrowserRouter(routes);
+
+const App: FC = () => (
+    <Suspense fallback="loading...">
+        <RouterProvider router={router} />
+    </Suspense>
+);
 
 export default App;

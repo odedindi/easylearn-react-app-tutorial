@@ -33,7 +33,7 @@ _as I know that in step 2.7 we intend on ejecting and customizing the webpack co
 let's update all required dependencies to their latest versions
 
 -   run `yarn upgrade-interactive`
-    **for all the options except for *eslint* please do not install v9, i used here the version 8.57, and *webpack-dev-server* please dont install v5, i used here 4.15.2, as there are significant breaking changes and it is too much to deal with for this tutorial for all other dependencies there shouldn't be any problem using their latest version from what i saw**
+    **for all the options except for _eslint_ please do not install v9, i used here the version 8.57, and _webpack-dev-server_ please dont install v5, i used here 4.15.2, as there are significant breaking changes and it is too much to deal with for this tutorial for all other dependencies there shouldn't be any problem using their latest version from what i saw**
 
 -   setup linting and prettier, run: `yarn add -D prettier eslint-plugin-prettier eslint-config-prettier @typescript-eslint/eslint-plugin @typescript-eslint/parser`
 -   create at the root a `.prettierrc` file and add the properties shown in[ marcel's tutorial](https://github.com/inkognitro/react-app-tutorial/blob/main/01-setup.md#//%20.prettierrc.js:~:text=prettierrc.js%20file%3A-,//%20.prettierrc.js,-module.exports) take the brakets and the content in the brakets but omit the `module.export =` part.
@@ -46,8 +46,8 @@ node_modules
 *.lock
 ```
 
-- add the following eslint rules in package.json:
-while we are editing the `webpack.config.js` file let's add one additional eslint rule that i like `no-unused-vars`:
+-   add the following eslint rules in package.json:
+    while we are editing the `webpack.config.js` file let's add one additional eslint rule that i like `no-unused-vars`:
 
 ```
      "eslintConfig": {
@@ -75,7 +75,8 @@ while we are editing the `webpack.config.js` file let's add one additional eslin
         }
     },
 ```
-- add the following scripts in package.json:
+
+-   add the following scripts in package.json:
 
 ```
     "lint": "eslint ./src --ext .ts,.tsx",
@@ -148,12 +149,130 @@ _webpack.config.js_
     }
 ```
 
+## 2. Routing
 
-## Available Scripts
+we chose to go with `react-router-dom` which is great, there is also [`TanStack Router`](https://tanstack.com/router/latest) which is great and has some really powerful methods under its hood, for our app `react-router-dom` is great, but i think it is better you use its latest syntax of a `RouteObject` array with a `createBrowserRouter` or `createMemoryBrowser` motheds.
 
-In the project directory, you can run:
+-   install react-router-dom by running: `yarn add react-router-dom`
+    lets create the base provider wrapper, the root layout and couple of pages.
 
--   `yarn start`
--   `yarn test`
--   `yarn build`
--   `yarn eject`
+-   create `src/providers/index.tsx`:
+
+```
+import type { FC, PropsWithChildren } from 'react';
+
+const Providers: FC<PropsWithChildren> = ({ children }) => <>{children}</>;
+
+export default Providers;
+```
+
+-   create `src/components/layout/rootLayout.tsx`
+
+```
+import type { FC } from 'react';
+import { Outlet } from 'react-router-dom';
+
+export const RootLayout: FC = () => (
+    <>
+        <h1>Root Layout</h1>
+        <Outlet />
+    </>
+);
+```
+
+-   create `src/pages/indexPage.tsx`:
+
+```
+import type { FC } from 'react';
+
+export const IndexPage: FC = () => {
+    return <>Index Page</>;
+};
+
+```
+
+-   create `src/pages/notFoundPage.tsx`:
+
+```
+import type { FC } from 'react';
+
+export const NotFoundPage: FC = () => {
+    return <>Not Found Page</>;
+};
+```
+
+-   create `src/pages/user-management/mySettingsPage.tsx`:
+
+```
+import type { FC } from 'react';
+
+export const MySettingsPage: FC = () => {
+    return <>My settings Page</>;
+};
+```
+
+-   create `src/pages/auth/registerPage.tsx`:
+
+```
+import type { FC } from 'react';
+
+export const RegisterPage: FC = () => {
+    return <>Register Page</>;
+};
+```
+
+let update our `App.tsx` file:
+
+```
+import { Suspense, type FC } from 'react';
+import './App.css';
+import { type RouteObject, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { IndexPage } from './pages/indexPage';
+import { RegisterPage } from './pages/auth/registerPage';
+import { MySettingsPage } from './pages/user-management/mySettingsPage';
+import { NotFoundPage } from './pages/notFoundPage';
+import { RootLayout } from '@components/layout';
+
+export const routes: RouteObject[] = [
+    {
+        path: '/',
+        element: (
+            <Providers>
+                <RootLayout />
+            </Providers>
+        ),
+        loader: async () => {
+            return null;
+        },
+        errorElement: <NotFoundPage />,
+        children: [
+            {
+                index: true,
+                element: <IndexPage />,
+            },
+            {
+                path: '/auth/register',
+                element: <RegisterPage />,
+            },
+            {
+                path: '/user-management/my-settings',
+                element: <MySettingsPage />,
+            },
+            {
+                path: '*',
+                element: <NotFoundPage />,
+            },
+        ],
+    },
+];
+
+const router = createBrowserRouter(routes);
+
+const App: FC = () => (
+    <Suspense fallback="loading...">
+        <RouterProvider router={router} />
+    </Suspense>
+);
+
+export default App;
+```
