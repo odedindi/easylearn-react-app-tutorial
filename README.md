@@ -364,3 +364,17 @@ const Providers: FC<PropsWithChildren> = ({ children }) => <SessionProvider>{chi
 
 export default Providers;
 ```
+
+4. Global config
+the app config can more easily shared via singleton rather then using context.
+
+- create `src/config/index.ts`
+```
+export type Config = {
+    companyName: string;
+};
+
+export const config: Config = {
+    companyName: 'ACME',
+};
+```
