@@ -1,12 +1,20 @@
-import { Suspense, type FC } from 'react';
+import { Suspense, type FC, PropsWithChildren } from 'react';
 import './App.css';
-import { type RouteObject, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { Navigate, Outlet, RouteObject, RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { IndexPage } from './pages/indexPage';
 import { RegisterPage } from './pages/auth/registerPage';
 import { MySettingsPage } from './pages/user-management/mySettingsPage';
 import { NotFoundPage } from './pages/notFoundPage';
 import { RootLayout } from '@components/layout';
 import Providers from './providers';
+import { useAuth } from './providers/sessionProvider';
+
+const ProtectedRoute: FC<PropsWithChildren<{ redirectPath?: string }>> = ({ children, redirectPath = '/' }) => {
+    const { session } = useAuth();
+
+    if (!session.isLoggedIn) return <Navigate to={redirectPath} />;
+    return children ? children : <Outlet />;
+};
 
 export const routes: RouteObject[] = [
     {
@@ -31,7 +39,11 @@ export const routes: RouteObject[] = [
             },
             {
                 path: '/user-management/my-settings',
-                element: <MySettingsPage />,
+                element: (
+                    <ProtectedRoute redirectPath="/404">
+                        <MySettingsPage />
+                    </ProtectedRoute>
+                ),
             },
             {
                 path: '*',

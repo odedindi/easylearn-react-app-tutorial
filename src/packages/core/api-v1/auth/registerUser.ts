@@ -1,6 +1,6 @@
 // src/packages/core/api-v1/auth/registerUser.ts
 
-// import { GenderId } from 'src/pages/auth/registerPage';
+import { GenderId } from 'src/pages/auth/registerPage';
 import {
     type ApiV1RequestHandler,
     type ApiV1RequestResponse,
@@ -30,7 +30,7 @@ type RegisterUserResponse =
     | ApiV1Response<ApiV1ResponseTypes.ERROR>;
 
 type RegisterUserPayload = {
-    // gender: GenderId;
+    gender: GenderId;
     email: string;
     username: string;
     password: string;

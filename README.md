@@ -1389,3 +1389,515 @@ const ApiV1Provider: FC<PropsWithChildren> = ({ children }) => {
 
 export default ApiV1Provider;
 ```
+
+## 12. complete the pages content
+
+now before we go to create the mock server, let's quickly finish the pages and update anything else that is needed.
+
+first let's portect our routes, update `App.tsx`:
+
+```
+import { Suspense, type FC, PropsWithChildren } from 'react';
+import './App.css';
+import { Navigate, Outlet, RouteObject, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { IndexPage } from './pages/indexPage';
+import { RegisterPage } from './pages/auth/registerPage';
+import { MySettingsPage } from './pages/user-management/mySettingsPage';
+import { NotFoundPage } from './pages/notFoundPage';
+import { RootLayout } from '@components/layout';
+import Providers from './providers';
+import { useAuth } from './providers/sessionProvider';
+
+const ProtectedRoute: FC<PropsWithChildren<{ redirectPath?: string }>> = ({ children, redirectPath = '/' }) => {
+    const { session } = useAuth();
+
+    if (!session.isLoggedIn) return <Navigate to={redirectPath} />;
+    return children ? children : <Outlet />;
+};
+
+export const routes: RouteObject[] = [
+    {
+        path: '/',
+        element: (
+            <Providers>
+                <RootLayout />
+            </Providers>
+        ),
+        loader: async () => {
+            return null;
+        },
+        errorElement: <NotFoundPage />,
+        children: [
+            {
+                index: true,
+                element: <IndexPage />,
+            },
+            {
+                path: '/auth/register',
+                element: <RegisterPage />,
+            },
+            {
+                path: '/user-management/my-settings',
+                element: (
+                    <ProtectedRoute redirectPath="/404">
+                        <MySettingsPage />
+                    </ProtectedRoute>
+                ),
+            },
+            {
+                path: '*',
+                element: <NotFoundPage />,
+            },
+        ],
+    },
+];
+
+const router = createBrowserRouter(routes);
+
+const App: FC = () => (
+    <Suspense fallback="loading...">
+        <RouterProvider router={router} />
+    </Suspense>
+);
+
+export default App;
+```
+
+-   update `src/pages/pageNotFound.tsx`
+
+```
+import type { FC } from 'react';
+import { useRouteError } from 'react-router-dom';
+import { useTitle } from '@hooks/useTitle';
+
+export const NotFoundPage: FC = () => {
+    useTitle('Not Found');
+    const error = useRouteError() as any;
+
+    return (
+        <>
+            <h1>Not Found!</h1>
+            <p>Sorry, an unexpected error has occurred.</p>
+            <p>
+                <i>{error?.statusText ?? error?.message}</i>
+            </p>
+        </>
+    );
+};
+```
+
+-   update `src/pages/registerPage.tsx`:
+    unless i must i tent to prefer to avoid managing form states, here is my implementation:
+
+```
+import { useState, type FC, type FormEvent } from 'react';
+import { useTitle } from '@hooks/useTitle';
+import { useTranslation, Trans } from 'react-i18next';
+import { FunctionalLink } from '@components/ui/routing';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import { useArrayCollection } from '@hooks/useArrayCollection';
+import type { Entry } from '@packages/core/collection';
+import { ApiV1ResponseTypes, useApiV1RequestHandler, type ApiV1ErrorMessage } from '@packages/core/api-v1/core';
+import { registerUser } from '@packages/core/api-v1/auth';
+import { useAuth } from 'src/providers/sessionProvider';
+
+import SingleSelectField from '@components/ui/form/singleSelectField';
+import TextField from '@components/ui/form/textField';
+import CheckboxField from '@components/ui/form/checkboxField';
+
+interface FormElements extends HTMLFormControlsCollection {
+    gender: HTMLSelectElement;
+    username: HTMLInputElement;
+    email: HTMLInputElement;
+    password: HTMLInputElement;
+    termsAndConditions: HTMLInputElement;
+}
+interface RegisterPageFormElement extends HTMLFormElement {
+    readonly elements: FormElements;
+}
+
+// Create the genders array
+export type GenderId = 'female' | 'male' | 'other';
+export const genderIds: Set<GenderId> = new Set(['female', 'male', 'other'] as GenderId[]);
+
+const SelectGender: FC<{ errorMessage?: ApiV1ErrorMessage }> = ({ errorMessage }) => {
+    const { t } = useTranslation('translation', { keyPrefix: 'pages.registerPage' });
+    const [genderFieldValue, setGenderFieldValue] = useState<Entry<GenderId> | null>(null);
+
+    const genderIdsArrayCollection = useArrayCollection<GenderId>({
+        dataArray: Array.from(genderIds),
+        createEntryKey: (gId) => gId,
+    });
+    return (
+        <SingleSelectField
+            data={{ chosenOption: genderFieldValue, errorMessage }}
+            onChange={(data) => setGenderFieldValue(data.chosenOption)}
+            provider={genderIdsArrayCollection}
+            renderOption={(e: Entry<GenderId>) => {
+                if (genderIds.has(e.data)) return t(`genderOptions.${e.data}`);
+                console.error(`genderId "${e.data}" is not supported!`);
+                return null;
+            }}
+            label={t('gender')}
+            variant="outlined"
+            margin="dense"
+            canChooseNone
+            fullWidth
+            name="gender"
+        />
+    );
+};
+
+// Register page
+
+export const RegisterPage: FC = () => {
+    const { t } = useTranslation('translation', { keyPrefix: 'pages.registerPage' });
+    useTitle(t('title'));
+
+    const { signin } = useAuth();
+    const apiV1RequestHandler = useApiV1RequestHandler();
+
+    const [formErrors, setFormErrors] = useState<Partial<Record<keyof FormElements, ApiV1ErrorMessage>>>({});
+
+    const onSubmit = async (e: FormEvent<RegisterPageFormElement>): Promise<void> => {
+        e.preventDefault();
+        const formElements = e.currentTarget.elements;
+        // currently only termsAndConditions is set as required field in our form,
+        // submi should be disabled if the form is not valid,
+        // and we can check the validity of the form like this:
+        const isFormValid = e.currentTarget.checkValidity();
+        // verifying checked status of the termsAndConditions checkbox can be done like this:
+        // const termsAndConditionsChecked: boolean = formElements.termsAndConditions.checked;
+        if (!isFormValid) {
+            console.info('[Error] Form is not valid! Check the fields for errors.');
+            return;
+        }
+        const formData = {
+            gender: formElements.gender.value as GenderId, // better to use a type guard here to ensure the value is a GenderId anyway it should be varified on the api side
+            username: formElements.username.value,
+            email: formElements.email.value,
+            password: formElements.password.value,
+            // termsAndConditions: formElements.termsAndConditions.checked, // not reqested by the API
+        };
+
+        console.log('Form submitted: ', { formData });
+        registerUser(apiV1RequestHandler, formData).then(({ response }) => {
+            if (!response) return;
+
+            if (response.type !== ApiV1ResponseTypes.SUCCESS) {
+                const errorMessages = response.body.fieldMessages.reduce(
+                    (
+                        errorMessagesAcc,
+                        {
+                            message: {
+                                severity,
+                                translation: { id: apiV1MessageTranslationKey }, // { id: apiV1MessageTranslationKey }, placeholder for better readability
+                            },
+                            path: [formElement],
+                        }
+                    ) =>
+                        severity === 'error'
+                            ? { ...errorMessagesAcc, [formElement]: apiV1MessageTranslationKey }
+                            : errorMessagesAcc,
+                    {}
+                );
+                setFormErrors(errorMessages);
+                return;
+            }
+            const data = response.body.data;
+
+            signin(
+                {
+                    type: 'authenticated',
+                    apiKey: data.apiKey,
+                    user: data.user,
+                },
+                { redirect: '/' }
+            );
+        });
+    };
+    return (
+        <>
+            <Typography component="h1" variant="h5">
+                {t('title')}
+            </Typography>
+            <form onSubmit={onSubmit}>
+                <SelectGender errorMessage={formErrors.gender} />
+                <TextField
+                    errorMessage={formErrors.username}
+                    // required // can be set as required in the form
+                    label={t('username')}
+                    name="username"
+                />
+                <TextField
+                    errorMessage={formErrors.email}
+                    label={t('email')}
+                    // type="email" // can be used for the native validation
+                    name="email"
+                />
+                <TextField errorMessage={formErrors.password} label={t('password')} type="password" name="password" />
+                <CheckboxField
+                    name="termsAndConditions"
+                    label={
+                        <Trans
+                            t={t}
+                            i18nKey="agreeOnTermsAndConditions"
+                            components={[
+                                <FunctionalLink key={0} onClick={() => console.log('open terms and conditions')} />,
+                            ]}
+                        />
+                    }
+                    errorMessage={formErrors.termsAndConditions}
+                    required
+                />
+                <Button type="submit" variant="outlined" color="primary" fullWidth>
+                    {t('signUp')}
+                </Button>
+            </form>
+        </>
+    );
+};
+```
+
+i moved your `coreSelect` to `components/ui/primitives/select.tsx`
+
+```
+import { type FC, type ReactNode, useMemo, useCallback } from 'react';
+import MenuItem from '@mui/material/MenuItem';
+import MuiSelect, { type SelectProps as MuiSelectProps } from '@mui/material/Select';
+import { useTranslation } from 'react-i18next';
+import type { Entry } from '@packages/core/collection';
+
+interface SelectProps<Data = unknown> extends Omit<MuiSelectProps, 'onChange'> {
+    name: string;
+    labelId?: string;
+    chosenOption: null | Entry<Data>;
+    options: Entry<Data>[];
+    renderOption: (_entry: Entry<Data>) => ReactNode;
+    canChooseNone?: boolean;
+    onChange?: (_option: null | Entry<Data>) => void;
+}
+
+const Select: FC<SelectProps> = ({ onChange, renderOption, chosenOption, canChooseNone, ...props }) => {
+    const { t } = useTranslation();
+
+    const options = useMemo(() => {
+        const shouldChosenOptionBeAddedToOptions =
+            !!chosenOption && !props.options.find((o) => o?.key === chosenOption?.key);
+        const options =
+            chosenOption && shouldChosenOptionBeAddedToOptions ? [chosenOption, ...props.options] : props.options;
+        return options;
+    }, [chosenOption, props.options]);
+
+    const shouldNoneOptionBeShown = !chosenOption || canChooseNone;
+
+    const getEntryByKeyOrNull = useCallback(
+        (key: unknown): null | Entry => options.find((o) => o.key === key) ?? null,
+        [options]
+    );
+
+    return (
+        <MuiSelect
+            inputProps={{
+                id: props.name,
+                name: props.name,
+            }}
+            id={props.name}
+            value={chosenOption?.key ?? ''}
+            onChange={({ target }) => {
+                const entry = getEntryByKeyOrNull(target.value);
+                onChange?.(entry);
+            }}
+            {...props}>
+            {shouldNoneOptionBeShown ? (
+                <MenuItem value="">
+                    <em>{t('core.form.selection.choose')}</em>
+                </MenuItem>
+            ) : null}
+            {options.map((o) => (
+                <MenuItem key={o?.key} value={o?.key}>
+                    {renderOption(o)}
+                </MenuItem>
+            ))}
+        </MuiSelect>
+    );
+};
+
+export default Select;
+```
+
+and used it to create `SingleSelectField` at `src/components/form/singleSelectField.tsx`:
+
+```
+import type { FC, ReactNode } from 'react';
+import type { CollectionProvider, Entry } from '@packages/core/collection';
+import Select from '../primitives/select';
+import FormHelperText from '@mui/material/FormHelperText';
+import FormControl, { type FormControlProps } from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import { ApiV1ErrorMessage } from '@packages/core/api-v1/core';
+import { useTranslation } from 'react-i18next';
+
+type SingleSelectFieldData = {
+    chosenOption: null | Entry;
+    errorMessage?: ApiV1ErrorMessage;
+};
+
+interface SingleSelectionFieldProps<Data = unknown>
+    extends Pick<FormControlProps, 'margin' | 'variant' | 'fullWidth' | 'size' | 'disabled'> {
+    label?: ReactNode;
+
+    data: SingleSelectFieldData;
+    provider: CollectionProvider<Data>;
+    onChange?: (_data: SingleSelectFieldData) => void;
+    renderOption: (_entry: Entry) => ReactNode | null;
+    canChooseNone?: boolean;
+    readOnly?: boolean;
+    name: string;
+}
+const SingleSelectField: FC<SingleSelectionFieldProps> = ({
+    margin, // FormControl
+    variant, // FormControl
+    fullWidth, // FormControl
+    size, // FormControl
+    disabled, // FormControl
+    label, // InputLabel
+
+    data,
+    provider,
+    onChange,
+    canChooseNone,
+    renderOption,
+    ...props
+}) => {
+    const hasErrorMessages = !!data.errorMessage;
+    const labelId = `select-${props.name}-label`;
+    const { t } = useTranslation();
+    return (
+        <FormControl
+            margin={margin}
+            variant={variant}
+            fullWidth={fullWidth}
+            size={size}
+            disabled={disabled}
+            error={hasErrorMessages}>
+            {label && <InputLabel id={labelId}>{label}</InputLabel>}
+            <Select
+                labelId={labelId}
+                chosenOption={data.chosenOption}
+                options={provider.entries}
+                onChange={(chosenOption) => onChange?.({ ...data, chosenOption })}
+                canChooseNone={canChooseNone}
+                renderOption={renderOption}
+                {...props}
+            />
+            {data.errorMessage ? <FormHelperText>{t(data.errorMessage)}</FormHelperText> : null}
+        </FormControl>
+    );
+};
+
+export default SingleSelectField;
+```
+
+also i created a custom `textField` at `src/components/form/textField.tsx`:
+
+```
+import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
+import MuiTextField from '@mui/material/TextField';
+import FormControl from '@mui/material/FormControl';
+import type { ApiV1ErrorMessage } from '@packages/core/api-v1/core/errorMessages';
+
+interface TextFieldProps {
+    errorMessage?: ApiV1ErrorMessage;
+    required?: boolean;
+    label: string;
+    type?: 'text' | 'password' | 'email';
+    name: string;
+}
+
+const TextField: FC<TextFieldProps> = ({ errorMessage, type = 'text', ...props }) => {
+    const { t } = useTranslation();
+    const parsedErrorMessage = errorMessage ? t(errorMessage) : undefined;
+    return (
+        <FormControl margin="dense" fullWidth>
+            <MuiTextField
+                error={!!parsedErrorMessage}
+                type={type}
+                inputProps={{ maxLength: 16 }}
+                variant="outlined"
+                helperText={parsedErrorMessage}
+                {...props}
+            />
+        </FormControl>
+    );
+};
+
+export default TextField;
+```
+
+and a custom `checkboxField` at `src/components/form/checkboxField.tsx`:
+
+```
+import type { FC, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import Typography from '@mui/material/Typography';
+import FormControl from '@mui/material/FormControl';
+import MuiFormControlLabel from '@mui/material/FormControlLabel';
+import FormHelperText from '@mui/material/FormHelperText';
+import { styled } from '@mui/material';
+import MuiCheckbox from '@mui/material/Checkbox';
+import { ApiV1ErrorMessage } from '@packages/core/api-v1/core';
+
+const StyledFormControlLabel = styled(MuiFormControlLabel)`
+    > .MuiStack-root {
+        display: flex;
+        flex-direction: row;
+    }
+`;
+
+interface CheckboxFieldProps {
+    label: ReactNode;
+    name: string;
+    errorMessage?: ApiV1ErrorMessage;
+    required?: boolean;
+}
+
+const CheckboxField: FC<CheckboxFieldProps> = ({ label, name, errorMessage, required }) => {
+    const { t } = useTranslation();
+    const parsedErrorMessage = errorMessage ? t(errorMessage) : undefined;
+    return (
+        <FormControl margin="dense" fullWidth error={!!parsedErrorMessage}>
+            <StyledFormControlLabel
+                required={required}
+                label={
+                    <Typography variant="body1" color={parsedErrorMessage ? 'danger' : 'inherit'}>
+                        {label}
+                    </Typography>
+                }
+                control={<MuiCheckbox name={name} />}
+            />
+            {parsedErrorMessage ? <FormHelperText>{parsedErrorMessage}</FormHelperText> : null}
+        </FormControl>
+    );
+};
+export default CheckboxField;
+```
+
+also please dont forget to update the `ResiterUserPayload` type with a gender key.
+
+-   at `src/packages/core/api-v1/auth/registerUser.ts` add:
+
+```
+import { GenderId } from 'src/pages/auth/registerPage';
+/*... other content ...*/
+type RegisterUserPayload = {
+    gender: GenderId;
+    email: string;
+    username: string;
+    password: string;
+};
+```
+
+\*i would move the type around a restructure the types nesting and logic but its a lot of work and not really relevent to this app's scope
