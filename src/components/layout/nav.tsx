@@ -50,7 +50,7 @@ const LoggedInUserMenu: FC = () => {
                 </MenuItem>
                 <MenuItem
                     onClick={() => {
-                        signout();
+                        signout({ redirect: '/' });
                         closeMenu();
                     }}>
                     Logout
